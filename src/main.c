@@ -58,12 +58,14 @@ int is_alt_tab_win(HWND hwnd)
     /* Used later... */
     TITLEBARINFO ti;
 
-    while ((hwnd_try = GetLastActivePopup(hwnd_walk)) != hwnd_try) {
+    hwnd_try = GetLastActivePopup(hwnd_walk);
+    do {
         if (IsWindowVisible(hwnd_try))
             break;
 
         hwnd_walk = hwnd_try;
-    }
+        hwnd_try = GetLastActivePopup(hwnd_walk);
+    } while (hwnd_walk != hwnd_try);
 
     ti.cbSize = sizeof(ti);
     GetTitleBarInfo(hwnd, &ti);
@@ -77,7 +79,6 @@ int is_alt_tab_win(HWND hwnd)
 
 BOOL CALLBACK win_callbk(HWND hwnd, LPARAM lParam)
 {
-    const DWORD TITLE_SIZE = 1024;
     TCHAR windowTitle[TITLE_SIZE];
     GetWindowText(hwnd, windowTitle, TITLE_SIZE);
 
@@ -111,7 +112,8 @@ HWND full_screen(HWND hwnd)
 
 int main(void)
 {
-    MSG msg = { };
+    MSG msg = { 0 };
+    LPARAM nul = 0;
 
     RegisterHotKey(NULL, HOTK_A, MOD_ALT, KEY_A);
     RegisterHotKey(NULL, HOTK_S, MOD_ALT, KEY_S);
@@ -119,7 +121,7 @@ int main(void)
     RegisterHotKey(NULL, HOTK_F, MOD_ALT, KEY_F);
 
 
-    EnumWindows(win_callbk, NULL);
+    EnumWindows(win_callbk, nul);
 
 
     while (GetMessage(&msg, NULL, 0, 0) > 0)
@@ -148,7 +150,7 @@ int main(void)
              * Since we just jumped, do some processing to make sure we have
              * other windows correctly assigned.
              */
-            EnumWindows(win_callbk, NULL);
+            EnumWindows(win_callbk, nul);
         }
 
         TranslateMessage(&msg);

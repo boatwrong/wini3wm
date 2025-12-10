@@ -19,5 +19,7 @@ static const char *explorer = "File Explorer";
 #define KEY_D 'D'
 #define KEY_F 'F'
 
+/* misc macros */
+#define TITLE_SIZE 1024
 
 #endif /* _WIN_I3_WM_H */
