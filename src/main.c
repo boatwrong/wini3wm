@@ -10,41 +10,10 @@ HWND hwnd_mingw;
 HWND hwnd_vs;
 HWND hwnd_chrome;
 HWND hwnd_explorer;
-
-int IsAltTabWindow(HWND hwnd)
-{
-    TITLEBARINFO ti;
-    HWND hwndTry, hwndWalk = NULL;
-
-    if(!IsWindowVisible(hwnd))
-        return 0;
-
-    hwndTry = GetAncestor(hwnd, GA_ROOTOWNER);
-    while(hwndTry != hwndWalk) 
-    {
-        hwndWalk = hwndTry;
-        hwndTry = GetLastActivePopup(hwndWalk);
-        if(IsWindowVisible(hwndTry)) 
-            break;
-    }
-    if(hwndWalk != hwnd)
-        return 0;
-
-    /* the following removes some task tray programs and "Program Manager" */
-    ti.cbSize = sizeof(ti);
-    GetTitleBarInfo(hwnd, &ti);
-    if(ti.rgstate[0] & STATE_SYSTEM_INVISIBLE)
-        return 0;
-
-    /*
-     * Tool windows should not be displayed either, these do not appear in the
-     * task bar.
-     */
-    if(GetWindowLong(hwnd, GWL_EXSTYLE) & WS_EX_TOOLWINDOW)
-        return 0;
-
-    return 1;
-}
+HWND hwnd_psh;
+HWND hwnd_npp;
+HWND hwnd_excel;
+HWND hwnd_adobe;
 
 int is_alt_tab_win(HWND hwnd)
 {
@@ -77,6 +46,30 @@ int is_alt_tab_win(HWND hwnd)
     return hwnd_walk == hwnd;
 }
 
+BOOL CALLBACK win_callbk_vb(HWND hwnd, LPARAM lParam)
+{
+    TCHAR windowTitle[TITLE_SIZE];
+    GetWindowText(hwnd, windowTitle, TITLE_SIZE);
+
+    if (is_alt_tab_win(hwnd) && IsWindowVisible(hwnd) &&
+        GetWindowTextLength(hwnd) > 0) {
+
+        printf("%s\n", windowTitle);
+
+        if (strstr(windowTitle, mingw)) { hwnd_mingw = hwnd; }
+        if (strstr(windowTitle, chrome)) { hwnd_chrome = hwnd; }
+        if (strstr(windowTitle, vs)) { hwnd_vs = hwnd; }
+        if (strstr(windowTitle, explorer)) { hwnd_explorer = hwnd; }
+        if (strstr(windowTitle, psh)) { hwnd_psh = hwnd; }
+        if (strstr(windowTitle, npp)) { hwnd_npp = hwnd; }
+        if (strstr(windowTitle, excel)) { hwnd_excel = hwnd; }
+        if (strstr(windowTitle, adobe)) { hwnd_adobe = hwnd; }
+    }
+
+    return TRUE;
+}
+
+
 BOOL CALLBACK win_callbk(HWND hwnd, LPARAM lParam)
 {
     TCHAR windowTitle[TITLE_SIZE];
@@ -89,25 +82,13 @@ BOOL CALLBACK win_callbk(HWND hwnd, LPARAM lParam)
         if (strstr(windowTitle, chrome)) { hwnd_chrome = hwnd; }
         if (strstr(windowTitle, vs)) { hwnd_vs = hwnd; }
         if (strstr(windowTitle, explorer)) { hwnd_explorer = hwnd; }
+        if (strstr(windowTitle, psh)) { hwnd_psh = hwnd; }
+        if (strstr(windowTitle, npp)) { hwnd_npp = hwnd; }
+        if (strstr(windowTitle, excel)) { hwnd_excel = hwnd; }
+        if (strstr(windowTitle, adobe)) { hwnd_adobe = hwnd; }
     }
 
     return TRUE;
-}
-
-HWND full_screen(HWND hwnd)
-{
- HMONITOR hmon = MonitorFromWindow(hwnd,
-                                   MONITOR_DEFAULTTONEAREST);
- MONITORINFO mi = { sizeof(mi) };
- if (!GetMonitorInfo(hmon, &mi)) return NULL;
- return CreateWindow(TEXT("static"),
-       TEXT("something interesting might go here"),
-       WS_POPUP | WS_VISIBLE,
-       mi.rcMonitor.left,
-       mi.rcMonitor.top,
-       mi.rcMonitor.right - mi.rcMonitor.left,
-       mi.rcMonitor.bottom - mi.rcMonitor.top,
-       hwnd, NULL, NULL, 0);
 }
 
 int main(void)
@@ -119,9 +100,13 @@ int main(void)
     RegisterHotKey(NULL, HOTK_S, MOD_ALT, KEY_S);
     RegisterHotKey(NULL, HOTK_D, MOD_ALT, KEY_D);
     RegisterHotKey(NULL, HOTK_F, MOD_ALT, KEY_F);
+    RegisterHotKey(NULL, HOTK_J, MOD_ALT, KEY_J);
+    RegisterHotKey(NULL, HOTK_K, MOD_ALT, KEY_K);
+    RegisterHotKey(NULL, HOTK_L, MOD_ALT, KEY_L);
+    RegisterHotKey(NULL, HOTK_SC, MOD_ALT, KEY_SC);
 
 
-    EnumWindows(win_callbk, nul);
+    EnumWindows(win_callbk_vb, nul);
 
 
     while (GetMessage(&msg, NULL, 0, 0) > 0)
@@ -130,19 +115,36 @@ int main(void)
             switch(msg.wParam) {
             case HOTK_A:
                 /* SetWindowPos(hwnd_mingw, HWND_TOPMOST, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_FRAMECHANGED); */
+                printf("alt + a\n");
                 SetForegroundWindow(hwnd_mingw);
                 break;
             case HOTK_S:
-                /* SetWindowPos(hwnd_explorer, HWND_TOPMOST, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_FRAMECHANGED); */
+                printf("alt + s\n");
                 SetForegroundWindow(hwnd_explorer);
                 break;
             case HOTK_D:
-                /* SetWindowPos(hwnd_vs, HWND_TOPMOST, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_FRAMECHANGED); */
+                printf("alt + d\n");
                 SetForegroundWindow(hwnd_vs);
                 break;
             case HOTK_F:
-                /* SetWindowPos(hwnd_chrome, HWND_TOPMOST, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_FRAMECHANGED); */
+                printf("alt + f\n");
                 SetForegroundWindow(hwnd_chrome);
+                break;
+            case HOTK_J:
+                printf("alt + j\n");
+                SetForegroundWindow(hwnd_psh);
+                break;
+            case HOTK_K:
+                printf("alt + k\n");
+                SetForegroundWindow(hwnd_npp);
+                break;
+            case HOTK_L:
+                printf("alt + l\n");
+                SetForegroundWindow(hwnd_excel);
+                break;
+            case HOTK_SC:
+                printf("alt + ;\n");
+                SetForegroundWindow(hwnd_adobe);
                 break;
             }
 
