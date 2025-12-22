@@ -152,7 +152,7 @@ int main(void)
              * Since we just jumped, do some processing to make sure we have
              * other windows correctly assigned.
              */
-            EnumWindows(win_callbk, nul);
+            EnumWindows(win_callbk_vb, nul);
         }
 
         TranslateMessage(&msg);
