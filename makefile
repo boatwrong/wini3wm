@@ -31,7 +31,7 @@ all: build
 
 ## Build the project by combining all object files
 build: ${objects} | ${bin_dir}
-	${CC} ${CFLAGS} -o ${executable} ${^}
+	${CC} ${CFLAGS} -o ${executable} ${^} -lgdi32
 
 ## Build the project with debug flags
 debug: ${objects} | ${bin_dir}
