@@ -34,5 +34,6 @@ Features missing from `i3` I'd like to add:
 * Config file (user defined:  workspaces, hotkeys, etc.)
 * A status bar of sorts to list active workspaces and workspaces w/ an assigned
 window.
-* Tiling? This is not a majorly important feature to me and would be more
-complicated so will likely not happend.
+* ~~Tiling? This is not a majorly important feature to me and would be more
+complicated so will likely not happend.~~
+* Tiling, definetly would like to start using that.

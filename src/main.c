@@ -10,6 +10,23 @@
 
 #define TITLE_SIZE 1024
 
+int monitor_sz_x;
+int monitor_sz_y;
+
+void set_focus_window(HWND hwnd, int hotk_chr)
+{
+    SetWindowPos(hwnd,
+                 HWND_TOP,
+                 10,
+                 10,
+                 monitor_sz_x - 20,
+                 monitor_sz_y - 20,
+                 SWP_NOZORDER | SWP_SHOWWINDOW);
+    SetForegroundWindow(hwnd);
+    UpdateWindow(hwnd);
+    printf("jump %c\n", hotk_chr);
+}
+
 int is_alt_tab_win(HWND hwnd)
 {
 
@@ -58,12 +75,19 @@ BOOL CALLBACK win_callbk_vb(HWND hwnd, LPARAM lParam)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		LPSTR lpCmdLine, int nCmdShow)
 {
+    RECT rect = { 0 };
 	TCHAR window_title[TITLE_SIZE];
 	HWND hwnd;
 	MSG msg = { 0 };
 	int i;
 
 	init_layout();
+
+    SystemParametersInfoA(SPI_GETWORKAREA, 0, &rect, 0);
+    printf("cx: %ld, cy: %ld\n", rect.right - rect.left, rect.bottom - rect.top);
+
+    monitor_sz_x = rect.right - rect.left;
+    monitor_sz_y = rect.bottom - rect.top;
 
 	/*
 	 * initial layout defines the hotkeys, but not the windows assigned.
@@ -81,6 +105,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			for (i = 0; i < g_layout.wsps_count; i++) {
 				if (msg.wParam == g_layout.wsps[i].hotk_code) {
 					if (g_layout.wsps[i].hwnd) {
+                        set_focus_window(g_layout.wsps[i].hwnd,
+                                         g_layout.wsps[i].hotk_chr);
+
 						SetForegroundWindow(g_layout.wsps[i].hwnd);
 						printf("jump %c\n", g_layout.wsps[i].hotk_chr);
 					} else {
