@@ -36,13 +36,14 @@ void init_layout(void)
 		if (!RegisterHotKey(NULL, assign_code_default[i], MOD_ALT | MOD_SHIFT, hotk_chr_default[i])) 
 			goto init_error;
 
-		g_layout.wsps[i].hwnd = NULL;
+		g_layout.wsps[i].hwnd_l = NULL;
+		g_layout.wsps[i].hwnd_r = NULL;
 		g_layout.wsps[i].hotk_chr = hotk_chr_default[i];
 		g_layout.wsps[i].hotk_code = hotk_code_default[i];
 		g_layout.wsps[i].assign_code = assign_code_default[i];
 	}
 
-
+    if (!RegisterHotKey(NULL, hotk_spc_code, MOD_ALT, hotk_spc_char)) goto init_error;
 
 	return;
 

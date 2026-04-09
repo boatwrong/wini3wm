@@ -13,8 +13,57 @@
 int monitor_sz_x;
 int monitor_sz_y;
 
-void set_focus_window(HWND hwnd, int hotk_chr)
+int active_wsps;
+HWND active_hwnd;
+
+void redraw_wsps(int wsps_id, int num_hwnd)
 {
+    int hwnd_x = (monitor_sz_x - 20) / num_hwnd;
+    int hwnd_y = (monitor_sz_y - 20); /* / num_hwnd; */
+
+
+    if (num_hwnd == 2) {
+        SetWindowPos(g_layout.wsps[wsps_id].hwnd_r,
+                     HWND_TOP,
+                     10 + hwnd_x + 5,
+                     10,
+                     hwnd_x,
+                     hwnd_y,
+                     SWP_NOZORDER | SWP_SHOWWINDOW);
+    UpdateWindow(g_layout.wsps[wsps_id].hwnd_r);
+    }
+
+    SetWindowPos(g_layout.wsps[wsps_id].hwnd_l,
+                 HWND_TOP,
+                 10,
+                 10,
+                 hwnd_x,
+                 hwnd_y,
+                 SWP_NOZORDER | SWP_SHOWWINDOW);
+    SetForegroundWindow(g_layout.wsps[wsps_id].hwnd_l);
+    UpdateWindow(g_layout.wsps[wsps_id].hwnd_l);
+
+}
+
+void assign_hwnd_to_wsps(HWND hwnd, int wsps_id)
+{
+    int num_hwnd = 1;
+
+    if (g_layout.wsps[wsps_id].hwnd_l) {
+        g_layout.wsps[wsps_id].hwnd_r = hwnd;
+        num_hwnd++;
+    } else {
+        g_layout.wsps[wsps_id].hwnd_l = hwnd;
+    }
+
+    redraw_wsps(wsps_id, num_hwnd);
+}
+
+void set_focus_window(int wsps, HWND hwnd)
+{
+    active_wsps = wsps;
+    active_hwnd = hwnd;
+    /*
     SetWindowPos(hwnd,
                  HWND_TOP,
                  10,
@@ -22,10 +71,25 @@ void set_focus_window(HWND hwnd, int hotk_chr)
                  monitor_sz_x - 20,
                  monitor_sz_y - 20,
                  SWP_NOZORDER | SWP_SHOWWINDOW);
+    */
     SetForegroundWindow(hwnd);
     UpdateWindow(hwnd);
-    printf("jump %c\n", hotk_chr);
 }
+
+void try_swap_focus(void)
+{
+    /* check for multiple windows in workspace */
+    if (g_layout.wsps[active_wsps].hwnd_l == active_hwnd) {
+
+        if (g_layout.wsps[active_wsps].hwnd_r) {
+            set_focus_window(active_wsps, g_layout.wsps[active_wsps].hwnd_r);
+        }
+
+    } else if (g_layout.wsps[active_wsps].hwnd_r == active_hwnd) {
+        set_focus_window(active_wsps, g_layout.wsps[active_wsps].hwnd_l);
+    }
+}
+
 
 int is_alt_tab_win(HWND hwnd)
 {
@@ -96,20 +160,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	 *
 	 * alt + hotkey jumps to a window.
 	 *
+	 * alt + space switches windows in a workspace.
 	 */
 	while (GetMessage(&msg, NULL, 0, 0) > 0) {
 		if (msg.message == WM_HOTKEY) {
 
 			printf("hotk code: %d\n", (int) msg.wParam);
 
+            if (msg.wParam == hotk_spc_code) {
+                printf("alt+space!\n");
+                try_swap_focus();
+            }
+
 			for (i = 0; i < g_layout.wsps_count; i++) {
 				if (msg.wParam == g_layout.wsps[i].hotk_code) {
-					if (g_layout.wsps[i].hwnd) {
-                        set_focus_window(g_layout.wsps[i].hwnd,
-                                         g_layout.wsps[i].hotk_chr);
-
-						SetForegroundWindow(g_layout.wsps[i].hwnd);
+					if (g_layout.wsps[i].hwnd_l) {
 						printf("jump %c\n", g_layout.wsps[i].hotk_chr);
+                        set_focus_window(i, g_layout.wsps[i].hwnd_l);
 					} else {
 						printf("%c not assigned\n", g_layout.wsps[i].hotk_chr);
 					}
@@ -123,11 +190,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 					} else {
 						GetWindowText(hwnd, window_title, TITLE_SIZE);
 						printf("hwnd: %s\n", window_title);
-						g_layout.wsps[i].hwnd = hwnd;
+                        assign_hwnd_to_wsps(hwnd, i);
 					}
 					break;
 				}
-
 			}
 		}
 
