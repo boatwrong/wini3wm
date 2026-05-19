@@ -95,6 +95,7 @@ void set_focus_window(int wsps, HWND hwnd)
 
 void jump_to_ws(int ws)
 {
+    /* TODO: show all hwnd in ws before focusing */
     int num_hwnd;
     printf("jump_to_ws\n");
     refresh_ws_state(ws);
@@ -116,6 +117,7 @@ void jump_to_ws(int ws)
 
 void assign_to_ws(int ws)
 {
+    /* TODO: if hwnd has previous assignment drop it */
     HWND hwnd;
 	TCHAR window_title[TITLE_SIZE];
     int num_hwnd;
@@ -125,7 +127,6 @@ void assign_to_ws(int ws)
     hwnd = GetForegroundWindow();
     printf("assign %c\n", g_layout.wsps[ws].hotk_chr);
 
-    /* todo: assign window logic not working as expected */
     if (NULL == hwnd) {
         printf("hwnd is null\n");
     } else {
@@ -246,12 +247,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                 try_swap_focus();
             }
 
+            /* TODO: alt + J/K don't work when chrome is focused */
 			for (i = 0; i < g_layout.wsps_count; i++) {
 				if (msg.wParam == g_layout.wsps[i].hotk_code) {
                     jump_to_ws(i);
 					break;
 				} else if (msg.wParam == g_layout.wsps[i].assign_code) {
-                    /* TODO: if hwnd has previous assignment drop it */
                     assign_to_ws(i);
 					break;
 				}
