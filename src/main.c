@@ -20,7 +20,7 @@ void redraw_wsps(int wsps_id, int num_hwnd)
 {
     int hwnd_x = (monitor_sz_x - 20) / num_hwnd;
     int hwnd_y = (monitor_sz_y - 20); /* / num_hwnd; */
-
+    printf("redraw_wsps\n");
 
     if (num_hwnd == 2) {
         SetWindowPos(g_layout.wsps[wsps_id].hwnd_r,
@@ -42,21 +42,38 @@ void redraw_wsps(int wsps_id, int num_hwnd)
                  SWP_NOZORDER | SWP_SHOWWINDOW);
     SetForegroundWindow(g_layout.wsps[wsps_id].hwnd_l);
     UpdateWindow(g_layout.wsps[wsps_id].hwnd_l);
-
 }
 
-void assign_hwnd_to_wsps(HWND hwnd, int wsps_id)
+/* assess if current list of hwnd is still valid */
+void refresh_ws_state(int ws)
 {
-    int num_hwnd = 1;
+    int has_l= 0;
+    int has_r= 0;
+    /* 
+    int num_hwnd = 0;
+    */
 
-    if (g_layout.wsps[wsps_id].hwnd_l) {
-        g_layout.wsps[wsps_id].hwnd_r = hwnd;
-        num_hwnd++;
-    } else {
-        g_layout.wsps[wsps_id].hwnd_l = hwnd;
+    printf("refresh_ws_state\n");
+
+    if (g_layout.wsps[ws].hwnd_l)
+        has_l = IsWindow(g_layout.wsps[ws].hwnd_l);
+
+    if (g_layout.wsps[ws].hwnd_r)
+        has_r = IsWindow(g_layout.wsps[ws].hwnd_r);
+
+    /* if hwnd is set and IsWindow returned false, clear the hwnd value */
+    if (g_layout.wsps[ws].hwnd_l && !has_l)
+        g_layout.wsps[ws].hwnd_l = NULL;
+
+    if (g_layout.wsps[ws].hwnd_r && !has_r)
+        g_layout.wsps[ws].hwnd_r = NULL;
+
+    /* shift the right hwnd over if left hwnd is closed */
+    if (g_layout.wsps[ws].hwnd_r && !g_layout.wsps[ws].hwnd_l) {
+        g_layout.wsps[ws].hwnd_l = g_layout.wsps[ws].hwnd_r;
+        g_layout.wsps[ws].hwnd_r = NULL;
     }
 
-    redraw_wsps(wsps_id, num_hwnd);
 }
 
 void set_focus_window(int wsps, HWND hwnd)
@@ -74,6 +91,65 @@ void set_focus_window(int wsps, HWND hwnd)
     */
     SetForegroundWindow(hwnd);
     UpdateWindow(hwnd);
+}
+
+void jump_to_ws(int ws)
+{
+    int num_hwnd;
+    printf("jump_to_ws\n");
+    refresh_ws_state(ws);
+
+    if (!g_layout.wsps[ws].hwnd_l) {
+        printf("%c not assigned\n", g_layout.wsps[ws].hotk_chr);
+        return;
+    }
+
+    printf("jump %c\n", g_layout.wsps[ws].hotk_chr);
+    set_focus_window(ws, g_layout.wsps[ws].hwnd_l);
+    num_hwnd = 1;
+    if (g_layout.wsps[ws].hwnd_r)
+        num_hwnd++;
+
+    redraw_wsps(ws, num_hwnd);
+}
+
+
+void assign_to_ws(int ws)
+{
+    HWND hwnd;
+	TCHAR window_title[TITLE_SIZE];
+    int num_hwnd;
+
+    refresh_ws_state(ws);
+
+    hwnd = GetForegroundWindow();
+    printf("assign %c\n", g_layout.wsps[ws].hotk_chr);
+
+    /* todo: assign window logic not working as expected */
+    if (NULL == hwnd) {
+        printf("hwnd is null\n");
+    } else {
+        GetWindowText(hwnd, window_title, TITLE_SIZE);
+        printf("hwnd: %s\n", window_title);
+
+        num_hwnd = 1;
+
+        if (g_layout.wsps[ws].hwnd_l) {
+            g_layout.wsps[ws].hwnd_r = hwnd;
+            num_hwnd++;
+        } else {
+            g_layout.wsps[ws].hwnd_l = hwnd;
+        }
+
+        redraw_wsps(ws, num_hwnd);
+    }
+
+    /*
+    if (g_layout.wsps[ws].hwnd_l) num_hwnd++;
+    if (g_layout.wsps[ws].hwnd_r) num_hwnd++;
+
+    redraw_wsps(ws, num_hwnd);
+    */
 }
 
 void try_swap_focus(void)
@@ -140,8 +216,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		LPSTR lpCmdLine, int nCmdShow)
 {
     RECT rect = { 0 };
-	TCHAR window_title[TITLE_SIZE];
-	HWND hwnd;
 	MSG msg = { 0 };
 	int i;
 
@@ -174,24 +248,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 			for (i = 0; i < g_layout.wsps_count; i++) {
 				if (msg.wParam == g_layout.wsps[i].hotk_code) {
-					if (g_layout.wsps[i].hwnd_l) {
-						printf("jump %c\n", g_layout.wsps[i].hotk_chr);
-                        set_focus_window(i, g_layout.wsps[i].hwnd_l);
-					} else {
-						printf("%c not assigned\n", g_layout.wsps[i].hotk_chr);
-					}
+                    jump_to_ws(i);
 					break;
 				} else if (msg.wParam == g_layout.wsps[i].assign_code) {
-					printf("assign %c\n", g_layout.wsps[i].hotk_chr);
-					/* todo: assign window logic not working as expected */
-					hwnd = GetForegroundWindow();
-					if (NULL == hwnd) {
-						printf("hwnd is null\n");
-					} else {
-						GetWindowText(hwnd, window_title, TITLE_SIZE);
-						printf("hwnd: %s\n", window_title);
-                        assign_hwnd_to_wsps(hwnd, i);
-					}
+                    /* TODO: if hwnd has previous assignment drop it */
+                    assign_to_ws(i);
 					break;
 				}
 			}
