@@ -6,7 +6,6 @@
 
 static int hotk_code_default[] = { 1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017 };
 static int assign_code_default[] = { 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025 };
-
 static int hotk_chr_default[] = { 'A', 'S', 'D', 'F', 'J', 'K', 'L', VK_OEM_1 };
 
 struct i3_layout g_layout;
@@ -39,10 +38,7 @@ void init_layout(void)
 		g_layout.wsps[i].hwnd_l = NULL;
 		g_layout.wsps[i].hotk_chr = hotk_chr_default[i];
 		g_layout.wsps[i].hotk_code = hotk_code_default[i];
-		g_layout.wsps[i].assign_code = assign_code_default[i];
 	}
-
-    if (!RegisterHotKey(NULL, hotk_spc_code, MOD_ALT, hotk_spc_char)) goto init_error;
 
 	return;
 

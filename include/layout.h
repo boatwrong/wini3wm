@@ -1,9 +1,6 @@
 #ifndef _WINI3_LAYOUT_H
 #define _WINI3_LAYOUT_H
 
-static const int hotk_spc_code = 1009;
-static const int hotk_spc_char = ' ';
-
 
 struct i3_workspace {
 	char title[16];

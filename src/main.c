@@ -9,6 +9,8 @@
 #include "layout.h"
 
 #define TITLE_SIZE 1024
+#define HOTK_JUMP_BASE 1010
+#define HOTK_ASSIGN_BASE 1018
 
 int monitor_sz_x;
 int monitor_sz_y;
@@ -150,7 +152,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 {
     RECT rect = { 0 };
 	MSG msg = { 0 };
-	int i;
 
 	init_layout();
 
@@ -172,14 +173,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 			printf("hotk code: %d\n", (int) msg.wParam);
 
-            /*
-            if (msg.wParam == hotk_spc_code) {
-                printf("alt+space!\n");
-                try_swap_focus();
-            }
-            */
+            if (msg.wParam >= HOTK_ASSIGN_BASE)
+                assign_to_ws(msg.wParam - HOTK_ASSIGN_BASE);
+            else
+                jump_to_ws(msg.wParam - HOTK_JUMP_BASE);
+
+
 
             /* TODO: alt + J/K don't work when chrome is focused */
+            /*
 			for (i = 0; i < g_layout.wsps_count; i++) {
 				if (msg.wParam == g_layout.wsps[i].hotk_code) {
                     jump_to_ws(i);
@@ -189,6 +191,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 					break;
 				}
 			}
+            */
 		}
 
 		TranslateMessage(&msg);
