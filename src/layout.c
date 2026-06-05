@@ -37,7 +37,6 @@ void init_layout(void)
 			goto init_error;
 
 		g_layout.wsps[i].hwnd_l = NULL;
-		g_layout.wsps[i].hwnd_r = NULL;
 		g_layout.wsps[i].hotk_chr = hotk_chr_default[i];
 		g_layout.wsps[i].hotk_code = hotk_code_default[i];
 		g_layout.wsps[i].assign_code = assign_code_default[i];

@@ -11,7 +11,6 @@ struct i3_workspace {
 	int hotk_code;
 	int assign_code;
 	HWND hwnd_l;
-	HWND hwnd_r;
 };
 
 struct i3_layout {
