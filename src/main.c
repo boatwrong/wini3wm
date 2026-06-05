@@ -50,10 +50,13 @@ void refresh_ws_state(int ws)
 
 }
 
-void set_focus_window(int wsps, HWND hwnd)
+void set_focus_window(int ws, HWND hwnd)
 {
-    active_wsps = wsps;
+    if (IsIconic(hwnd))
+        printf("workspace %c hwnd is minimized\n", g_layout.wsps[ws].hotk_chr);
+    active_wsps = ws;
     active_hwnd = hwnd;
+    ShowWindow(hwnd, SW_NORMAL);
     SetForegroundWindow(hwnd);
     UpdateWindow(hwnd);
 }
