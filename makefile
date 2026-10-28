@@ -15,7 +15,7 @@ objects 			 := $(subst .c,.o,$(subst ${src_dir},${obj_dir},${sources}))
 
 # C Compiler Configuration
 CC      			 := gcc # Using gcc compiler (alternative: clang)
-CFLAGS				 := -I${inc_dir} -g -Wall -Werror -ansi -pedantic-errors -O2
+CFLAGS				 := -I${inc_dir} -g -Wall -Werror -ansi -pedantic -O2
 # CFLAGS options:
 # -g 			Compile with debug symbols in binary files
 # -Wall 		Warnings: all - display every single warning

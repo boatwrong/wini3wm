@@ -6,19 +6,172 @@
 #include <commctrl.h>
 #include <crtdbg.h>
 
-#include "layout.h"
-
+/* constants */
+static const int hotk_code_default[] = { 1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017 };
+static const int assign_code_default[] = { 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025 };
+static const int hotk_chr_default[] = { 'A', 'S', 'D', 'F', 'J', 'K', 'L', VK_OEM_1 };
 #define TITLE_SIZE 1024
 #define HOTK_JUMP_BASE 1010
 #define HOTK_ASSIGN_BASE 1018
 
-int monitor_sz_x;
-int monitor_sz_y;
+/* types */
+struct i3_workspace {
+	char title[16];
+	int hotk_chr;
+	int hotk_code;
+	int assign_code;
+	HWND hwnd_l;
+};
 
-int active_wsps;
-HWND active_hwnd;
+struct i3_layout {
+	struct i3_workspace *wsps;
+	size_t wsps_count;
+};
 
-void redraw_wsps(int wsps_id, int num_hwnd)
+/* globals */
+static int monitor_sz_x;
+static int monitor_sz_y;
+static int active_wsps;
+static HWND active_hwnd;
+struct i3_layout g_layout;
+
+/* helper functions */
+static void redraw_wsps(int wsps_id, int num_hwnd);
+static void refresh_ws_state(int ws);
+static void set_focus_window(int ws, HWND hwnd);
+static void jump_to_ws(int ws);
+static void assign_to_ws(int ws);
+static int is_alt_tab_win(HWND hwnd);
+static BOOL CALLBACK win_callbk_vb(HWND hwnd, LPARAM lParam);
+static void init_layout(void);
+static int is_i3_hotkey(int key, int *ws);
+
+/*
+ * things to hook into:
+ *
+ * - keyboard events
+ * - timer to retile at intervals?
+ * - new windows?
+ */
+
+/* todo: make this modular in a config file. */
+#define SUPER_KEY MOD_ALT
+
+int main(void)
+{
+    RECT rect = { 0 };
+	MSG msg = { 0 };
+
+    int ws;
+
+	init_layout();
+
+    EnumWindows(win_callbk_vb, 0);
+
+	/*
+	 * initial layout defines the hotkeys, but not the windows assigned.
+	 *
+	 * alt + shitf + hotkey assigns a window.
+	 *
+	 * alt + hotkey jumps to a window.
+	 */
+	while (GetMessage(&msg, NULL, 0, 0) > 0) {
+		if (msg.message == WM_HOTKEY) {
+
+            printf("HIWORD: %d\n", HIWORD(msg.lParam));
+            printf("LOWORD: %#04x\n", LOWORD(msg.lParam));
+            printf("ALT?: %d\n", LOWORD(msg.lParam) & SUPER_KEY);
+            printf("SHIFT?: %d\n", LOWORD(msg.lParam) & MOD_SHIFT);
+
+            printf("value: %d\n", (int)(msg.wParam - HOTK_ASSIGN_BASE));
+            printf("value: %d\n", (int)(msg.wParam - HOTK_JUMP_BASE));
+
+            if (is_i3_hotkey(HIWORD(msg.lParam), &ws)) {
+                if (LOWORD(msg.lParam) & SUPER_KEY) {
+                    if (LOWORD(msg.lParam) & MOD_SHIFT) {
+                        printf("move hwnd to workspace '%c'\n", HIWORD(msg.lParam));
+                    } else {
+                        printf("     jump to workspace '%c'\n", HIWORD(msg.lParam));
+                    }
+                }
+            }
+
+            SystemParametersInfoA(SPI_GETWORKAREA, 0, &rect, 0);
+            monitor_sz_x = rect.right - rect.left;
+            monitor_sz_y = rect.bottom - rect.top;
+
+            if (msg.wParam >= HOTK_ASSIGN_BASE)
+                assign_to_ws(msg.wParam - HOTK_ASSIGN_BASE);
+            else
+                jump_to_ws(msg.wParam - HOTK_JUMP_BASE);
+
+		}
+
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+
+	return 0;
+}
+
+#define arr_len(arr) (sizeof(arr)/sizeof(arr[0]))
+static int is_i3_hotkey(int key, int *ws)
+{
+    int i;
+    int is_key;
+
+    is_key = 0;
+    for (i = 0; i < arr_len(hotk_chr_default); i++)
+    {
+        printf("comparing: %c -- %c\n", key, hotk_chr_default[i]);
+        if (key == hotk_chr_default[i]) {
+            printf("is hotkey: %c\n", key);
+            is_key = 1;
+            *ws = i;
+            break;
+        }
+    }
+    return is_key;
+}
+
+static void init_layout(void)
+{
+
+	/* 
+	 * todo: take a config file to determine workspaces instead of
+	 * 	 defaults. 
+	 */
+
+	int i;
+	size_t ws_size = sizeof(*(g_layout.wsps));
+	g_layout.wsps_count = 8;
+	g_layout.wsps = malloc(ws_size * g_layout.wsps_count);
+
+	if (!g_layout.wsps)
+		goto init_error;
+
+	for (i = 0; i < g_layout.wsps_count; i++) {
+		printf("setup ws: %d, key: %c, code: %d assign: %d\n", i, hotk_chr_default[i], hotk_code_default[i], assign_code_default[i]);
+
+		if (!RegisterHotKey(NULL, hotk_code_default[i], SUPER_KEY, hotk_chr_default[i])) 
+			goto init_error;
+
+		if (!RegisterHotKey(NULL, assign_code_default[i], SUPER_KEY | MOD_SHIFT, hotk_chr_default[i])) 
+			goto init_error;
+
+		g_layout.wsps[i].hwnd_l = NULL;
+		g_layout.wsps[i].hotk_chr = hotk_chr_default[i];
+		g_layout.wsps[i].hotk_code = hotk_code_default[i];
+	}
+
+	return;
+
+init_error:
+	fprintf(stderr, "Error, initialization failed\n");
+	exit(-1);
+}
+
+static void redraw_wsps(int wsps_id, int num_hwnd)
 {
     int hwnd_x = (monitor_sz_x - 20) / num_hwnd;
     int hwnd_y = (monitor_sz_y - 20);
@@ -36,7 +189,7 @@ void redraw_wsps(int wsps_id, int num_hwnd)
 }
 
 /* assess if current list of hwnd is still valid */
-void refresh_ws_state(int ws)
+static void refresh_ws_state(int ws)
 {
     int has_l= 0;
     printf("refresh_ws_state\n");
@@ -50,7 +203,7 @@ void refresh_ws_state(int ws)
 
 }
 
-void set_focus_window(int ws, HWND hwnd)
+static void set_focus_window(int ws, HWND hwnd)
 {
     if (IsIconic(hwnd))
         printf("workspace %c hwnd is minimized\n", g_layout.wsps[ws].hotk_chr);
@@ -61,7 +214,7 @@ void set_focus_window(int ws, HWND hwnd)
     UpdateWindow(hwnd);
 }
 
-void jump_to_ws(int ws)
+static void jump_to_ws(int ws)
 {
     /* TODO: show all hwnd in ws before focusing */
     int num_hwnd;
@@ -80,7 +233,7 @@ void jump_to_ws(int ws)
 }
 
 
-void assign_to_ws(int ws)
+static void assign_to_ws(int ws)
 {
     /* TODO: if hwnd has previous assignment drop it */
     HWND hwnd;
@@ -105,7 +258,7 @@ void assign_to_ws(int ws)
 }
 
 
-int is_alt_tab_win(HWND hwnd)
+static int is_alt_tab_win(HWND hwnd)
 {
 
     /* Start at the root owner */
@@ -136,7 +289,7 @@ int is_alt_tab_win(HWND hwnd)
     return hwnd_walk == hwnd;
 }
 
-BOOL CALLBACK win_callbk_vb(HWND hwnd, LPARAM lParam)
+static BOOL CALLBACK win_callbk_vb(HWND hwnd, LPARAM lParam)
 {
     TCHAR window_title[TITLE_SIZE];
     GetWindowText(hwnd, window_title, TITLE_SIZE);
@@ -150,56 +303,3 @@ BOOL CALLBACK win_callbk_vb(HWND hwnd, LPARAM lParam)
     return TRUE;
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-		LPSTR lpCmdLine, int nCmdShow)
-{
-    RECT rect = { 0 };
-	MSG msg = { 0 };
-
-	init_layout();
-
-    SystemParametersInfoA(SPI_GETWORKAREA, 0, &rect, 0);
-    printf("cx: %ld, cy: %ld\n", rect.right - rect.left, rect.bottom - rect.top);
-
-    monitor_sz_x = rect.right - rect.left;
-    monitor_sz_y = rect.bottom - rect.top;
-
-	/*
-	 * initial layout defines the hotkeys, but not the windows assigned.
-	 *
-	 * alt + shitf + hotkey assigns a window.
-	 *
-	 * alt + hotkey jumps to a window.
-	 */
-	while (GetMessage(&msg, NULL, 0, 0) > 0) {
-		if (msg.message == WM_HOTKEY) {
-
-			printf("hotk code: %d\n", (int) msg.wParam);
-
-            if (msg.wParam >= HOTK_ASSIGN_BASE)
-                assign_to_ws(msg.wParam - HOTK_ASSIGN_BASE);
-            else
-                jump_to_ws(msg.wParam - HOTK_JUMP_BASE);
-
-
-
-            /* TODO: alt + J/K don't work when chrome is focused */
-            /*
-			for (i = 0; i < g_layout.wsps_count; i++) {
-				if (msg.wParam == g_layout.wsps[i].hotk_code) {
-                    jump_to_ws(i);
-					break;
-				} else if (msg.wParam == g_layout.wsps[i].assign_code) {
-                    assign_to_ws(i);
-					break;
-				}
-			}
-            */
-		}
-
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
-	}
-
-	return 0;
-}
