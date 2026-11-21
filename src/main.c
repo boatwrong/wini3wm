@@ -7,19 +7,14 @@
 #include <crtdbg.h>
 
 /* constants */
-static const int hotk_code_default[] = { 1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017 };
-static const int assign_code_default[] = { 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025 };
-static const int hotk_chr_default[] = { 'A', 'S', 'D', 'F', 'J', 'K', 'L', VK_OEM_1 };
+static const int hotkeys[] = { 'A', 'S', 'D', 'F', 'J', 'K', 'L', VK_OEM_1 };
 #define TITLE_SIZE 1024
-#define HOTK_JUMP_BASE 1010
-#define HOTK_ASSIGN_BASE 1018
+#define HOTK_JUMP_BASE 1000
+#define HOTK_ASSIGN_BASE 2000
 
 /* types */
 struct i3_workspace {
 	char title[16];
-	int hotk_chr;
-	int hotk_code;
-	int assign_code;
 	HWND hwnd;
 };
 
@@ -105,10 +100,10 @@ static int is_i3_hotkey(int mod, int key, int *ws)
         return 0;
 
     is_key = 0;
-    for (i = 0; i < arr_len(hotk_chr_default); i++)
+    for (i = 0; i < arr_len(hotkeys); i++)
     {
-        printf("comparing: %c -- %c\n", key, hotk_chr_default[i]);
-        if (key == hotk_chr_default[i]) {
+        printf("comparing: %c -- %c\n", key, hotkeys[i]);
+        if (key == hotkeys[i]) {
             printf("is hotkey: %c\n", key);
             is_key = 1;
             *ws = i;
@@ -120,32 +115,26 @@ static int is_i3_hotkey(int mod, int key, int *ws)
 
 static void init_layout(void)
 {
-
 	/* 
 	 * todo: take a config file to determine workspaces instead of
 	 * 	 defaults. 
 	 */
-
 	int i;
 	size_t ws_size = sizeof(*(g_layout.wsps));
-	g_layout.wsps_count = 8;
+	g_layout.wsps_count = arr_len(hotkeys);
 	g_layout.wsps = malloc(ws_size * g_layout.wsps_count);
 
 	if (!g_layout.wsps)
 		goto init_error;
 
 	for (i = 0; i < g_layout.wsps_count; i++) {
-		printf("setup ws: %d, key: %c, code: %d assign: %d\n", i, hotk_chr_default[i], hotk_code_default[i], assign_code_default[i]);
-
-		if (!RegisterHotKey(NULL, hotk_code_default[i], SUPER_KEY, hotk_chr_default[i])) 
+		if (!RegisterHotKey(NULL, HOTK_JUMP_BASE + hotkeys[i], SUPER_KEY, hotkeys[i])) 
 			goto init_error;
 
-		if (!RegisterHotKey(NULL, assign_code_default[i], SUPER_KEY | MOD_SHIFT, hotk_chr_default[i])) 
+		if (!RegisterHotKey(NULL, HOTK_ASSIGN_BASE + hotkeys[i], SUPER_KEY | MOD_SHIFT, hotkeys[i])) 
 			goto init_error;
 
 		g_layout.wsps[i].hwnd = NULL;
-		g_layout.wsps[i].hotk_chr = hotk_chr_default[i];
-		g_layout.wsps[i].hotk_code = hotk_code_default[i];
 	}
 
 	return;
@@ -190,7 +179,7 @@ static void refresh_ws_state(int ws)
 static void set_focus_window(int ws, HWND hwnd)
 {
     if (IsIconic(hwnd))
-        printf("workspace %c hwnd is minimized\n", g_layout.wsps[ws].hotk_chr);
+        printf("workspace %c hwnd is minimized\n", hotkeys[ws]);
     active_wsps = ws;
     active_hwnd = hwnd;
     ShowWindow(hwnd, SW_NORMAL);
@@ -206,11 +195,11 @@ static void jump_to_ws(int ws)
     refresh_ws_state(ws);
 
     if (!g_layout.wsps[ws].hwnd) {
-        printf("%c not assigned\n", g_layout.wsps[ws].hotk_chr);
+        printf("%c not assigned\n", hotkeys[ws]);
         return;
     }
 
-    printf("jump %c\n", g_layout.wsps[ws].hotk_chr);
+    printf("jump %c\n", hotkeys[ws]);
     set_focus_window(ws, g_layout.wsps[ws].hwnd);
     num_hwnd = 1;
     redraw_wsps(ws, num_hwnd);
@@ -227,7 +216,7 @@ static void assign_to_ws(int ws)
     refresh_ws_state(ws);
 
     hwnd = GetForegroundWindow();
-    printf("assign %c\n", g_layout.wsps[ws].hotk_chr);
+    printf("assign %c\n", hotkeys[ws]);
 
     if (NULL == hwnd) {
         printf("hwnd is null\n");
