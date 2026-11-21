@@ -44,7 +44,7 @@ static void assign_to_ws(int ws);
 static int is_alt_tab_win(HWND hwnd);
 static BOOL CALLBACK win_callbk_vb(HWND hwnd, LPARAM lParam);
 static void init_layout(void);
-static int is_i3_hotkey(int key, int *ws);
+static int is_i3_hotkey(int mod, int key, int *ws);
 static void handle_hotkey(MSG msg, int ws);
 
 /*
@@ -79,14 +79,13 @@ int main(void)
 	while (GetMessage(&msg, NULL, 0, 0) > 0) {
 		if (msg.message == WM_HOTKEY) {
 
-            if (is_i3_hotkey(HIWORD(msg.lParam), &ws)) {
+            if (is_i3_hotkey(LOWORD(msg.lParam), HIWORD(msg.lParam), &ws)) {
                 SystemParametersInfoA(SPI_GETWORKAREA, 0, &rect, 0);
                 monitor_sz_x = rect.right - rect.left;
                 monitor_sz_y = rect.bottom - rect.top;
 
                 handle_hotkey(msg, ws);
             }
-
 		}
 
 		TranslateMessage(&msg);
@@ -97,10 +96,13 @@ int main(void)
 }
 
 #define arr_len(arr) (sizeof(arr)/sizeof(arr[0]))
-static int is_i3_hotkey(int key, int *ws)
+static int is_i3_hotkey(int mod, int key, int *ws)
 {
     int i;
     int is_key;
+
+    if (!(mod & SUPER_KEY))
+        return 0;
 
     is_key = 0;
     for (i = 0; i < arr_len(hotk_chr_default); i++)
@@ -287,7 +289,6 @@ static BOOL CALLBACK win_callbk_vb(HWND hwnd, LPARAM lParam)
 
 static void handle_hotkey(MSG msg, int ws)
 {
-    if (LOWORD(msg.lParam) & SUPER_KEY) {
         if (LOWORD(msg.lParam) & MOD_SHIFT) {
             printf("move hwnd to workspace '%c'\n", HIWORD(msg.lParam));
             assign_to_ws(ws);
@@ -295,5 +296,4 @@ static void handle_hotkey(MSG msg, int ws)
             printf("     jump to workspace '%c'\n", HIWORD(msg.lParam));
             jump_to_ws(ws);
         }
-    }
 }
