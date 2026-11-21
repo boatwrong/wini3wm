@@ -45,6 +45,7 @@ static int is_alt_tab_win(HWND hwnd);
 static BOOL CALLBACK win_callbk_vb(HWND hwnd, LPARAM lParam);
 static void init_layout(void);
 static int is_i3_hotkey(int key, int *ws);
+static void handle_hotkey(MSG msg, int ws);
 
 /*
  * things to hook into:
@@ -78,32 +79,13 @@ int main(void)
 	while (GetMessage(&msg, NULL, 0, 0) > 0) {
 		if (msg.message == WM_HOTKEY) {
 
-            printf("HIWORD: %d\n", HIWORD(msg.lParam));
-            printf("LOWORD: %#04x\n", LOWORD(msg.lParam));
-            printf("ALT?: %d\n", LOWORD(msg.lParam) & SUPER_KEY);
-            printf("SHIFT?: %d\n", LOWORD(msg.lParam) & MOD_SHIFT);
-
-            printf("value: %d\n", (int)(msg.wParam - HOTK_ASSIGN_BASE));
-            printf("value: %d\n", (int)(msg.wParam - HOTK_JUMP_BASE));
-
             if (is_i3_hotkey(HIWORD(msg.lParam), &ws)) {
-                if (LOWORD(msg.lParam) & SUPER_KEY) {
-                    if (LOWORD(msg.lParam) & MOD_SHIFT) {
-                        printf("move hwnd to workspace '%c'\n", HIWORD(msg.lParam));
-                    } else {
-                        printf("     jump to workspace '%c'\n", HIWORD(msg.lParam));
-                    }
-                }
+                SystemParametersInfoA(SPI_GETWORKAREA, 0, &rect, 0);
+                monitor_sz_x = rect.right - rect.left;
+                monitor_sz_y = rect.bottom - rect.top;
+
+                handle_hotkey(msg, ws);
             }
-
-            SystemParametersInfoA(SPI_GETWORKAREA, 0, &rect, 0);
-            monitor_sz_x = rect.right - rect.left;
-            monitor_sz_y = rect.bottom - rect.top;
-
-            if (msg.wParam >= HOTK_ASSIGN_BASE)
-                assign_to_ws(msg.wParam - HOTK_ASSIGN_BASE);
-            else
-                jump_to_ws(msg.wParam - HOTK_JUMP_BASE);
 
 		}
 
@@ -303,3 +285,15 @@ static BOOL CALLBACK win_callbk_vb(HWND hwnd, LPARAM lParam)
     return TRUE;
 }
 
+static void handle_hotkey(MSG msg, int ws)
+{
+    if (LOWORD(msg.lParam) & SUPER_KEY) {
+        if (LOWORD(msg.lParam) & MOD_SHIFT) {
+            printf("move hwnd to workspace '%c'\n", HIWORD(msg.lParam));
+            assign_to_ws(ws);
+        } else {
+            printf("     jump to workspace '%c'\n", HIWORD(msg.lParam));
+            jump_to_ws(ws);
+        }
+    }
+}
