@@ -20,7 +20,7 @@ struct i3_workspace {
 	int hotk_chr;
 	int hotk_code;
 	int assign_code;
-	HWND hwnd_l;
+	HWND hwnd;
 };
 
 struct i3_layout {
@@ -159,7 +159,7 @@ static void init_layout(void)
 		if (!RegisterHotKey(NULL, assign_code_default[i], SUPER_KEY | MOD_SHIFT, hotk_chr_default[i])) 
 			goto init_error;
 
-		g_layout.wsps[i].hwnd_l = NULL;
+		g_layout.wsps[i].hwnd = NULL;
 		g_layout.wsps[i].hotk_chr = hotk_chr_default[i];
 		g_layout.wsps[i].hotk_code = hotk_code_default[i];
 	}
@@ -177,29 +177,29 @@ static void redraw_wsps(int wsps_id, int num_hwnd)
     int hwnd_y = (monitor_sz_y - 20);
     printf("redraw_wsps\n");
 
-    SetWindowPos(g_layout.wsps[wsps_id].hwnd_l,
+    SetWindowPos(g_layout.wsps[wsps_id].hwnd,
                  HWND_TOP,
                  10,
                  10,
                  hwnd_x,
                  hwnd_y,
                  SWP_NOZORDER | SWP_SHOWWINDOW);
-    SetForegroundWindow(g_layout.wsps[wsps_id].hwnd_l);
-    UpdateWindow(g_layout.wsps[wsps_id].hwnd_l);
+    SetForegroundWindow(g_layout.wsps[wsps_id].hwnd);
+    UpdateWindow(g_layout.wsps[wsps_id].hwnd);
 }
 
 /* assess if current list of hwnd is still valid */
 static void refresh_ws_state(int ws)
 {
-    int has_l= 0;
+    int has_hwnd= 0;
     printf("refresh_ws_state\n");
 
-    if (g_layout.wsps[ws].hwnd_l)
-        has_l = IsWindow(g_layout.wsps[ws].hwnd_l);
+    if (g_layout.wsps[ws].hwnd)
+        has_hwnd = IsWindow(g_layout.wsps[ws].hwnd);
 
     /* if hwnd is set and IsWindow returned false, clear the hwnd value */
-    if (g_layout.wsps[ws].hwnd_l && !has_l)
-        g_layout.wsps[ws].hwnd_l = NULL;
+    if (g_layout.wsps[ws].hwnd && !has_hwnd)
+        g_layout.wsps[ws].hwnd = NULL;
 
 }
 
@@ -221,13 +221,13 @@ static void jump_to_ws(int ws)
     printf("jump_to_ws\n");
     refresh_ws_state(ws);
 
-    if (!g_layout.wsps[ws].hwnd_l) {
+    if (!g_layout.wsps[ws].hwnd) {
         printf("%c not assigned\n", g_layout.wsps[ws].hotk_chr);
         return;
     }
 
     printf("jump %c\n", g_layout.wsps[ws].hotk_chr);
-    set_focus_window(ws, g_layout.wsps[ws].hwnd_l);
+    set_focus_window(ws, g_layout.wsps[ws].hwnd);
     num_hwnd = 1;
     redraw_wsps(ws, num_hwnd);
 }
@@ -252,7 +252,7 @@ static void assign_to_ws(int ws)
         printf("hwnd: %s\n", window_title);
 
         num_hwnd = 1;
-        g_layout.wsps[ws].hwnd_l = hwnd;
+        g_layout.wsps[ws].hwnd = hwnd;
         redraw_wsps(ws, num_hwnd);
     }
 }
