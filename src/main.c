@@ -9,12 +9,13 @@
 
 /* constants */
 static const int hotkeys[] = { 'A', 'S', 'D', 'F', 'J', 'K', 'L', VK_OEM_1 };
+static const char hotkeys_chars[] = "ASDFJKL#";
 #define TITLE_SIZE 1024
 #define HOTK_JUMP_BASE 1000
 #define HOTK_ASSIGN_BASE 2000
 #define BAR_HEIGHT  40
 #define WM_APPBAR   (WM_APP + 1)
-#define NUM_WS ((int)(sizeof(hotkeys) / sizeof(hotkeys[0]) - 1))
+#define arr_len(arr) (sizeof(arr)/sizeof(arr[0]))
 
 static APPBARDATA abd;
 
@@ -147,7 +148,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, RGB(255, 255, 255));
 
-        for (i = 0; i < NUM_WS; i++) {
+        for (i = 0; i < arr_len(hotkeys_chars) - 1; i++) {
             RECT r;
             r.left   = gap + i * (box + gap);
             r.top    = y;
@@ -162,7 +163,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 SetTextColor(hdc, RGB(255, 255, 255));
             }
             Rectangle(hdc, r.left, r.top, r.right, r.bottom);
-            DrawText(hdc, (char *)&(hotkeys[i]), 1, &r, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            DrawText(hdc, &(hotkeys_chars[i]), 1, &r, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         }
 
         SelectObject(hdc, oldFont);
@@ -185,8 +186,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-
-#define arr_len(arr) (sizeof(arr)/sizeof(arr[0]))
 static int is_i3_hotkey(int mod, int key, int *ws)
 {
     int i;
@@ -389,7 +388,7 @@ static void handle_hotkey(LPARAM lParam, int ws)
 
 static void set_active_ws(int idx)
 {
-    if (idx < 0 || idx >= NUM_WS)
+    if (idx < 0 || idx >= arr_len(hotkeys))
         return;
     active_wsps = idx;
     if (abd.hWnd)
