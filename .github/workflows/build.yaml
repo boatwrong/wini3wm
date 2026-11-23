@@ -24,14 +24,22 @@ jobs:
       - name: Build
         run: make CC=x86_64-w64-mingw32-gcc
 
+      - name: Create SHA-256 checksum
+        working-directory: build/bin
+        run: sha256sum i3wm.exe > i3wm.exe.sha256
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: i3wm
-          path: build/bin/i3wm.exe
+          path: |
+            build/bin/i3wm.exe
+            build/bin/i3wm.exe.sha256
 
       - name: Create GitHub Release
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v3
         with:
-          files: build/bin/i3wm.exe
+          files: |
+            build/bin/i3wm.exe
+            build/bin/i3wm.exe.sha256
