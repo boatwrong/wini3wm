@@ -9,7 +9,9 @@ experience that I get on home desktop.
 
 ## Dependencies:
 
-* [w64devkit](https://github.com/skeeto/w64devkit)
+[w64devkit](https://github.com/skeeto/w64devkit)
+or
+[MSYS2](https://www.msys2.org/)
 
 ## Install:
 
@@ -22,8 +24,6 @@ Build steps:
 
 Usage:
 
-Run the executable and off you go.
-
 There currently are only 8 predefined workspaces which can be navigated to using
 `ALT + <workspace>`. The workspaces are the home row keys on QWERTY layout
 (a, s, d, f, j, k, l, ;). To assign a window to a workspace use `ALT + SHIFT +
@@ -32,8 +32,10 @@ There currently are only 8 predefined workspaces which can be navigated to using
 Features missing from `i3` I'd like to add:
 
 * Config file (user defined:  workspaces, hotkeys, etc.)
-* A status bar of sorts to list active workspaces and workspaces w/ an assigned
-window.
+* ~~A status bar of sorts to list active workspaces and workspaces w/ an assigned
+window.~~
 * ~~Tiling? This is not a majorly important feature to me and would be more
 complicated so will likely not happend.~~
 * Tiling, definetly would like to start using that.
+    * Look at i3 styles.
+* Detect new applications opening.
