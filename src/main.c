@@ -103,7 +103,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             monitor_sz_x = rect.right - rect.left;
             monitor_sz_y = rect.bottom - rect.top;
 
-            handle_hotkey(msg, ws);
+            handle_hotkey(lParam, ws);
             set_active_ws(ws);
         }
 
@@ -242,16 +242,20 @@ init_error:
 
 static void redraw_wsps(int wsps_id, int num_hwnd)
 {
-    int hwnd_x = (monitor_sz_x - 20) / num_hwnd;
-    int hwnd_y = (monitor_sz_y - 20);
+    int x,y,cx,cy;
+
+    x = 10;
+    y = 10 + BAR_HEIGHT;
+    cx = (monitor_sz_x - 20) / num_hwnd;
+    cy = monitor_sz_y - 20;
     printf("redraw_wsps\n");
 
     SetWindowPos(g_layout.wsps[wsps_id].hwnd,
                  HWND_TOP,
-                 10,
-                 10,
-                 hwnd_x,
-                 hwnd_y,
+                 x,
+                 y,
+                 cx,
+                 cy,
                  SWP_NOZORDER | SWP_SHOWWINDOW);
     SetForegroundWindow(g_layout.wsps[wsps_id].hwnd);
     UpdateWindow(g_layout.wsps[wsps_id].hwnd);
