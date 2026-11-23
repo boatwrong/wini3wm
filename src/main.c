@@ -5,12 +5,18 @@
 #include <string.h>
 #include <commctrl.h>
 #include <crtdbg.h>
+#include <shellapi.h>
 
 /* constants */
 static const int hotkeys[] = { 'A', 'S', 'D', 'F', 'J', 'K', 'L', VK_OEM_1 };
 #define TITLE_SIZE 1024
 #define HOTK_JUMP_BASE 1000
 #define HOTK_ASSIGN_BASE 2000
+#define BAR_HEIGHT  40
+#define WM_APPBAR   (WM_APP + 1)
+#define NUM_WS ((int)(sizeof(hotkeys) / sizeof(hotkeys[0]) - 1))
+
+static APPBARDATA abd;
 
 /* types */
 struct i3_workspace {
@@ -38,9 +44,12 @@ static void jump_to_ws(int ws);
 static void assign_to_ws(int ws);
 static int is_alt_tab_win(HWND hwnd);
 static BOOL CALLBACK win_callbk_vb(HWND hwnd, LPARAM lParam);
-static void init_layout(void);
+static void init_layout(HWND hwnd);
 static int is_i3_hotkey(int mod, int key, int *ws);
-static void handle_hotkey(MSG msg, int ws);
+static void handle_hotkey(LPARAM lParam, int ws);
+static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+static void set_bar_pos(HWND hwnd);
+static void set_active_ws(int ws);
 
 /*
  * things to hook into:
@@ -53,42 +62,129 @@ static void handle_hotkey(MSG msg, int ws);
 /* todo: make this modular in a config file. */
 #define SUPER_KEY MOD_ALT
 
-int main(void)
+int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmd, int show)
 {
-    RECT rect = { 0 };
+    HWND hwnd;
+    WNDCLASS wc = {0};
 	MSG msg = { 0 };
 
-    int ws;
 
-	init_layout();
+    wc.lpfnWndProc   = WndProc;
+    wc.hInstance     = hInst;
+    wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = CreateSolidBrush(RGB(32, 32, 32));
+    wc.lpszClassName = TEXT("TopBar");
+    RegisterClass(&wc);
+
+    hwnd = CreateWindowEx(WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+                               wc.lpszClassName, TEXT(""), WS_POPUP,
+                               0, 0, 0, 0, NULL, NULL, hInst, NULL);
+	init_layout(hwnd);
+    ShowWindow(hwnd, show);
 
     EnumWindows(win_callbk_vb, 0);
 
-	/*
-	 * initial layout defines the hotkeys, but not the windows assigned.
-	 *
-	 * alt + shitf + hotkey assigns a window.
-	 *
-	 * alt + hotkey jumps to a window.
-	 */
 	while (GetMessage(&msg, NULL, 0, 0) > 0) {
-		if (msg.message == WM_HOTKEY) {
-
-            if (is_i3_hotkey(LOWORD(msg.lParam), HIWORD(msg.lParam), &ws)) {
-                SystemParametersInfoA(SPI_GETWORKAREA, 0, &rect, 0);
-                monitor_sz_x = rect.right - rect.left;
-                monitor_sz_y = rect.bottom - rect.top;
-
-                handle_hotkey(msg, ws);
-            }
-		}
-
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
 
 	return 0;
 }
+
+static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    int ws;
+    RECT rect = { 0 };
+    switch (msg) {
+    case WM_HOTKEY:
+        if (is_i3_hotkey(LOWORD(lParam), HIWORD(lParam), &ws)) {
+            SystemParametersInfoA(SPI_GETWORKAREA, 0, &rect, 0);
+            monitor_sz_x = rect.right - rect.left;
+            monitor_sz_y = rect.bottom - rect.top;
+
+            handle_hotkey(msg, ws);
+            set_active_ws(ws);
+        }
+
+    case WM_CREATE:
+        abd.cbSize           = sizeof(abd);
+        abd.hWnd             = hwnd;
+        abd.uCallbackMessage = WM_APPBAR;
+        SHAppBarMessage(ABM_NEW, &abd); /* register as an appbar */
+        set_bar_pos(hwnd);
+        return 0;
+
+    case WM_APPBAR:
+        if (wParam == ABN_POSCHANGED) set_bar_pos(hwnd);
+        return 0;
+
+    case WM_ACTIVATE:
+        SHAppBarMessage(ABM_ACTIVATE, &abd);
+        break;
+
+    case WM_WINDOWPOSCHANGED:
+        SHAppBarMessage(ABM_WINDOWPOSCHANGED, &abd);
+        break;
+
+    case WM_DISPLAYCHANGE:
+        set_bar_pos(hwnd);
+        return 0;
+
+    case WM_PAINT: {
+        const int box = 28, gap = 6, y = (BAR_HEIGHT - box) / 2;
+        PAINTSTRUCT ps;
+        HDC hdc;
+        HPEN pen;
+        HGDIOBJ oldPen, oldBrush, oldFont;
+        int i;
+
+        hdc = BeginPaint(hwnd, &ps);
+        pen      = CreatePen(PS_SOLID, 1, RGB(160, 160, 160));
+        oldPen   = SelectObject(hdc, pen);
+        oldBrush = SelectObject(hdc, GetStockObject(NULL_BRUSH));
+        oldFont  = SelectObject(hdc, GetStockObject(DEFAULT_GUI_FONT));
+        SetBkMode(hdc, TRANSPARENT);
+        SetTextColor(hdc, RGB(255, 255, 255));
+
+        for (i = 0; i < NUM_WS; i++) {
+            RECT r;
+            r.left   = gap + i * (box + gap);
+            r.top    = y;
+            r.right  = r.left + box;
+            r.bottom = r.top + box;
+            if (i == active_wsps) { /* highlighted box */
+                HBRUSH hl = CreateSolidBrush(RGB(200, 200, 200));
+                FillRect(hdc, &r, hl);
+                DeleteObject(hl);
+                SetTextColor(hdc, RGB(0, 0, 0));
+            } else {
+                SetTextColor(hdc, RGB(255, 255, 255));
+            }
+            Rectangle(hdc, r.left, r.top, r.right, r.bottom);
+            DrawText(hdc, (char *)&(hotkeys[i]), 1, &r, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        }
+
+        SelectObject(hdc, oldFont);
+        SelectObject(hdc, oldBrush);
+        SelectObject(hdc, oldPen);
+        DeleteObject(pen);
+        EndPaint(hwnd, &ps);
+        return 0;
+    }
+
+    case WM_RBUTTONUP:
+        DestroyWindow(hwnd);
+        return 0;
+
+    case WM_DESTROY:
+        SHAppBarMessage(ABM_REMOVE, &abd); /* give the space back */
+        PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
 
 #define arr_len(arr) (sizeof(arr)/sizeof(arr[0]))
 static int is_i3_hotkey(int mod, int key, int *ws)
@@ -113,7 +209,7 @@ static int is_i3_hotkey(int mod, int key, int *ws)
     return is_key;
 }
 
-static void init_layout(void)
+static void init_layout(HWND hwnd)
 {
 	/* 
 	 * todo: take a config file to determine workspaces instead of
@@ -128,10 +224,10 @@ static void init_layout(void)
 		goto init_error;
 
 	for (i = 0; i < g_layout.wsps_count; i++) {
-		if (!RegisterHotKey(NULL, HOTK_JUMP_BASE + hotkeys[i], SUPER_KEY, hotkeys[i])) 
+		if (!RegisterHotKey(hwnd, HOTK_JUMP_BASE + hotkeys[i], SUPER_KEY, hotkeys[i])) 
 			goto init_error;
 
-		if (!RegisterHotKey(NULL, HOTK_ASSIGN_BASE + hotkeys[i], SUPER_KEY | MOD_SHIFT, hotkeys[i])) 
+		if (!RegisterHotKey(hwnd, HOTK_ASSIGN_BASE + hotkeys[i], SUPER_KEY | MOD_SHIFT, hotkeys[i])) 
 			goto init_error;
 
 		g_layout.wsps[i].hwnd = NULL;
@@ -276,13 +372,38 @@ static BOOL CALLBACK win_callbk_vb(HWND hwnd, LPARAM lParam)
     return TRUE;
 }
 
-static void handle_hotkey(MSG msg, int ws)
+static void handle_hotkey(LPARAM lParam, int ws)
 {
-        if (LOWORD(msg.lParam) & MOD_SHIFT) {
-            printf("move hwnd to workspace '%c'\n", HIWORD(msg.lParam));
+        if (LOWORD(lParam) & MOD_SHIFT) {
+            printf("move hwnd to workspace '%c'\n", HIWORD(lParam));
             assign_to_ws(ws);
         } else {
-            printf("     jump to workspace '%c'\n", HIWORD(msg.lParam));
+            printf("     jump to workspace '%c'\n", HIWORD(lParam));
             jump_to_ws(ws);
         }
+}
+
+static void set_active_ws(int idx)
+{
+    if (idx < 0 || idx >= NUM_WS)
+        return;
+    active_wsps = idx;
+    if (abd.hWnd)
+        InvalidateRect(abd.hWnd, NULL, TRUE);
+}
+
+static void set_bar_pos(HWND hwnd)
+{
+    abd.uEdge      = ABE_TOP;
+    abd.rc.left    = 0;
+    abd.rc.top     = 0;
+    abd.rc.right   = GetSystemMetrics(SM_CXSCREEN);
+    abd.rc.bottom  = BAR_HEIGHT;
+
+    SHAppBarMessage(ABM_QUERYPOS, &abd); /* let the shell adjust the rect */
+    abd.rc.bottom = abd.rc.top + BAR_HEIGHT;
+    SHAppBarMessage(ABM_SETPOS, &abd); /* reserve the screen space */
+
+    MoveWindow(hwnd, abd.rc.left, abd.rc.top,
+               abd.rc.right - abd.rc.left, BAR_HEIGHT, TRUE);
 }

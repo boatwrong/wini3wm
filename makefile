@@ -24,6 +24,8 @@ CFLAGS				 := -I${inc_dir} -g -Wall -Werror -ansi -pedantic -O2
 # -I${inc_dir}  Look in the include directory for include files
 # -O2 			Disable compilation optimizations
 
+LIBS				:=-mwindows -lshell32
+
 # Phony rules do not create artifacts but are usefull workflow
 .PHONY: all build debug clean
 
@@ -31,7 +33,7 @@ all: build
 
 ## Build the project by combining all object files
 build: ${objects} | ${bin_dir}
-	${CC} ${CFLAGS} -o ${executable} ${^}
+	${CC} ${CFLAGS} -o ${executable} ${^} ${LIBS}
 
 ## Build the project with debug flags
 debug: ${objects} | ${bin_dir}
